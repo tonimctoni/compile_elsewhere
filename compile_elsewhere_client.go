@@ -19,6 +19,15 @@ func list_dir_into_file_dir_data(root string) (FileDirData, error){
             return nil
         }
 
+        // Make sure root is included in path
+        if !strings.HasPrefix(path, root+"/"){
+            fmt.Fprintln(os.Stderr, "Error (filepath.Walk) (HasPrefix):", "path does not have 'root'/ as prefix")
+            return nil
+        }
+
+        // Remove root from path
+        path=path[len(root)+1:]
+
         // Make sure there were no errors reaching this file/directory listing its contents
         if err != nil {
             fmt.Fprintln(os.Stderr, "Error (filepath.Walk) (WalkFunc):", err)
