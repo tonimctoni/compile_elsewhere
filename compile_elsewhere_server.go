@@ -9,22 +9,68 @@ import "encoding/json"
 import "errors"
 import "sync/atomic"
 import "path"
+import "io/ioutil"
 
-func get_file_dir_data_from_connection(connection net.Conn) (FileDirData, error){
-    // Read firs 32 incomming bytes, which should be a padded ascii string of the length of the json data to be gotten later
-    json_len_string_bytes:=make([]byte, 32)
-    _,err:=connection.Read(json_len_string_bytes)
+// Reads 20 bytes from connection, expecting the padded ascii representation of an int. Returns the int.
+func read_int_from_connection(connection net.Conn) (int, error){
+    // Read 20 bytes from connection
+    padded_ascii_int_bytes:=make([]byte, 20)
+    _,err:=connection.Read(padded_ascii_int_bytes)
     if err!=nil{
         fmt.Fprintln(os.Stderr, "Error (connection.Read) (1):", err)
-        return FileDirData{}, err
+        return 0, err
     }
 
-    // Get the actual length out of the padded string
-    json_len_string:=string(json_len_string_bytes)
-    json_len_string=strings.TrimSpace(json_len_string)
-    json_len, err:=strconv.Atoi(json_len_string)
+    // Get the actual int out of what was read
+    padded_ascii_int_string:=string(padded_ascii_int_bytes)
+    ascii_int_string:=strings.TrimSpace(padded_ascii_int_string)
+    int_to_return, err:=strconv.Atoi(ascii_int_string)
     if err!=nil{
         fmt.Fprintln(os.Stderr, "Error (strconv.Atoi) (1):", err)
+        return 0, err
+    }
+
+    return int_to_return, nil
+}
+
+// Reads bytes from connection. If the size is larger than 1024, it is read in chunks of 1024
+func read_bytes_from_connection(connection net.Conn, size int) ([]byte, error){
+    buffer:=make([]byte, size)
+    index:=int(0)
+
+    // While more than 1024 bytes are left to read: read them and add them to buffer
+    for size>1024{
+        n,err:=connection.Read(buffer[index:index+1024])
+        if err!=nil{
+            fmt.Fprintln(os.Stderr, "Error (connection.Read) (3):", err)
+            return nil, err
+        }
+        index+=n
+        size-=n
+    }
+
+    // If there is anything left to read (that is, size was not a multiple of 1024) read it and add it to buffer
+    if size!=0{
+        n,err:=connection.Read(buffer[index:])
+        if err!=nil{
+            fmt.Fprintln(os.Stderr, "Error (connection.Read) (4):", err)
+            return nil, err
+        }
+        index+=n
+        size-=n
+    }
+
+    if size!=0{
+        panic("read_file_from_connection implemented incorrectly")
+    }
+
+    return buffer, nil
+}
+
+func get_file_dir_data_from_connection(connection net.Conn) (FileDirData, error){
+    // Get length of the json file to be read from connection afterwards
+    json_len, err:=read_int_from_connection(connection)
+    if err!=nil{
         return FileDirData{}, err
     }
 
@@ -35,10 +81,8 @@ func get_file_dir_data_from_connection(connection net.Conn) (FileDirData, error)
     }
 
     // Get the actuall json data as a byte array
-    json_filedirdata:=make([]byte, json_len)
-    _,err=connection.Read(json_filedirdata)
+    json_filedirdata, err:=read_bytes_from_connection(connection, json_len)
     if err!=nil{
-        fmt.Fprintln(os.Stderr, "Error (connection.Read) (2):", err, "json_len:", json_len)
         return FileDirData{}, err
     }
 
@@ -76,10 +120,28 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
         return
     }
 
+    // Create a new directory for the current user and in it put all needed subdirectories
     root_dir:="work_dir_"+strconv.Itoa(int(atomic.AddInt64(work_dir_counter, 1)))
     err=create_directories(root_dir, file_dir_data.Dirs)
     if err!=nil{
         return
+    }
+
+    // When done with the connection, remove the directory created specifically for it
+    defer os.RemoveAll(root_dir)
+
+    // Read all needed files from connection and save them in their paths within root_dir
+    for _,file_data:=range file_dir_data.Files{
+        file_content, err:=read_bytes_from_connection(connection, file_data.Size)
+        if err!=nil{
+            return
+        }
+
+        err=ioutil.WriteFile(path.Join(root_dir, file_data.Path), file_content, 0766)
+        if err!=nil{
+            fmt.Fprintln(os.Stderr, "Error (ioutil.WriteFile):", err)
+            return
+        }
     }
 
     fmt.Println(file_dir_data)

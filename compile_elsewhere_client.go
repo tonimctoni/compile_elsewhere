@@ -7,6 +7,7 @@ import "strconv"
 import "strings"
 import "path/filepath"
 import "encoding/json"
+import "errors"
 
 
 func list_dir_into_file_dir_data(root string) (FileDirData, error){
@@ -22,7 +23,7 @@ func list_dir_into_file_dir_data(root string) (FileDirData, error){
         // Make sure root is included in path
         if !strings.HasPrefix(path, root+"/"){
             fmt.Fprintln(os.Stderr, "Error (filepath.Walk) (HasPrefix):", "path does not have 'root'/ as prefix")
-            return nil
+            return errors.New("Error (filepath.Walk) (HasPrefix): path does not have 'root'/ as prefix")
         }
 
         // Remove root from path
@@ -69,9 +70,9 @@ func main() {
         return
     }
 
-    // Get a padded string of len 32 of the length of the list of files and directories in json format
+    // Get a padded string of len 20 of the length of the list of files and directories in json format
     json_len_string:=strconv.Itoa(len(json_file_dir_data))
-    json_len_string+=strings.Repeat(" ", 32-len(json_len_string))
+    json_len_string+=strings.Repeat(" ", 20-len(json_len_string))
 
     // Create a tcp connection with server
     connection,err:=net.Dial("tcp", "localhost:1234")
