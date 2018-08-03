@@ -6,7 +6,7 @@ import "os"
 import "strings"
 import "strconv"
 import "encoding/json"
-import "errors"
+// import "errors"
 import "sync/atomic"
 import "path"
 import "io/ioutil"
@@ -42,7 +42,7 @@ func read_bytes_from_connection(connection net.Conn, size int) ([]byte, error){
     for size>1024{
         n,err:=connection.Read(buffer[index:index+1024])
         if err!=nil{
-            fmt.Fprintln(os.Stderr, "Error (connection.Read) (3):", err)
+            fmt.Fprintln(os.Stderr, "Error (connection.Read) (2):", err)
             return nil, err
         }
         index+=n
@@ -50,10 +50,11 @@ func read_bytes_from_connection(connection net.Conn, size int) ([]byte, error){
     }
 
     // If there is anything left to read (that is, size was not a multiple of 1024) read it and add it to buffer
+    // Also, if size was a multiple of 1024 exactly 1024 bytes are sent here
     if size!=0{
         n,err:=connection.Read(buffer[index:])
         if err!=nil{
-            fmt.Fprintln(os.Stderr, "Error (connection.Read) (4):", err)
+            fmt.Fprintln(os.Stderr, "Error (connection.Read) (3):", err)
             return nil, err
         }
         index+=n
@@ -67,34 +68,27 @@ func read_bytes_from_connection(connection net.Conn, size int) ([]byte, error){
     return buffer, nil
 }
 
-func get_file_dir_data_from_connection(connection net.Conn) (FileDirData, error){
-    // Get length of the json file to be read from connection afterwards
-    json_len, err:=read_int_from_connection(connection)
+func read_struct_as_json_from_connection(connection net.Conn, struct_to_receive interface{}) error{
+    // Get length of the json file to be read from connection
+    json_struct_len, err:=read_int_from_connection(connection)
     if err!=nil{
-        return FileDirData{}, err
-    }
-
-    // Make sure the length is within a sensible range
-    if json_len<=0 || json_len>1024*1024{
-        fmt.Fprintln(os.Stderr, "Error (json_len too long or too short):", json_len)
-        return FileDirData{}, errors.New("json_len out of sensible range")
+        return err
     }
 
     // Get the actuall json data as a byte array
-    json_filedirdata, err:=read_bytes_from_connection(connection, json_len)
+    json_struct, err:=read_bytes_from_connection(connection, json_struct_len)
     if err!=nil{
-        return FileDirData{}, err
+        return err
     }
 
-    // Get a go-structure out of the json data
-    var file_dir_data FileDirData
-    err=json.Unmarshal(json_filedirdata, &file_dir_data)
+    // Get struct from json data
+    err=json.Unmarshal(json_struct, struct_to_receive)
     if err!=nil{
         fmt.Fprintln(os.Stderr, "Error (json.Unmarshal):", err)
-        return FileDirData{}, err
+        return err
     }
 
-    return file_dir_data, nil
+    return nil
 }
 
 // Create all directories in "paths" within "root" directory
@@ -115,7 +109,8 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
     fmt.Printf("%s->%s:\n", connection.RemoteAddr(), connection.LocalAddr())
 
     // Get list of files to retrieve and the directories they are in
-    file_dir_data, err:=get_file_dir_data_from_connection(connection)
+    var file_dir_data FileDirData
+    err:=read_struct_as_json_from_connection(connection, &file_dir_data)
     if err!=nil{
         return
     }
