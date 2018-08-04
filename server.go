@@ -71,7 +71,7 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
 
     // If there was an error in the compilation process: abort
     if cmd_err!=nil{
-        fmt.Fprintln(os.Stderr, "Error (exec.Command(...).Run()):", err)
+        fmt.Fprintln(os.Stderr, "Error (exec.Command(...).Run()):", cmd_err)
         return
     }
 
