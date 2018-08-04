@@ -8,6 +8,7 @@ import "strconv"
 import "encoding/json"
 import "io/ioutil"
 import "path"
+import "time"
 
 // Reads bytes from connection. If the size is larger than 1024, it is read in chunks of 1024
 // It laso makes sure that exactly "size" bytes are read
@@ -195,4 +196,53 @@ func write_files_into_connection(connection net.Conn, root_dir string, file_data
     }
 
     return nil
+}
+
+func send_wait_messages(connection net.Conn, finish chan bool, ret chan error){
+    err:=error(nil)
+    n:=int(0)
+    for{
+        time.Sleep(200*time.Millisecond)
+        select{
+        case <- finish:
+            if err==nil{
+                n,err=connection.Write([]byte{1})
+                if err==nil && n!=1{
+                    panic("send_wait_messages implemented incorrectly (2)")
+                }
+            }
+
+            if err!=nil{
+                fmt.Fprintln(os.Stderr, "Error (connection.Write) (4):", err)
+            }
+
+            ret <- err
+            return
+        default:
+            if err==nil{
+                n,err=connection.Write([]byte{0})
+                if err==nil && n!=1{
+                    panic("send_wait_messages implemented incorrectly (1)")
+                }
+            }
+        }
+    }
+}
+
+func receive_wait_messages(connection net.Conn) error{
+    buffer:=make([]byte, 1)
+    for{
+        n, err:=connection.Read(buffer)
+        if err!=nil{
+            fmt.Fprintln(os.Stderr, "Error (connection.Read) (3):", err)
+            return err
+        }
+        if n==1{
+            if buffer[0]!=0{
+                return nil
+            }
+        } else{
+            time.Sleep(100*time.Millisecond)
+        }
+    }
 }

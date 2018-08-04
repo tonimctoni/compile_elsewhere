@@ -36,6 +36,12 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
         return
     }
 
+    // Run goroutine that keeps on sending messages during the running of "make"
+    // This should keep the connection alive
+    finish_waiting:=make(chan bool)
+    waiting_return:=make(chan error)
+    go send_wait_messages(connection, finish_waiting, waiting_return)
+
     // Compile the received source code
     cmd:=exec.Command("make")
     cmd_stdout:=new(bytes.Buffer)
@@ -44,6 +50,12 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
     cmd.Stderr=cmd_stderr
     cmd.Dir=root_dir
     cmd_err:=cmd.Run()
+
+    finish_waiting<-true
+    err=<-waiting_return
+    if err!=nil{
+        return
+    }
 
     // Write stdout/stderr of make command to connection
     err=write_int_to_connection(connection, cmd_stdout.Len())

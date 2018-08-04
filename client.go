@@ -32,6 +32,12 @@ func run_client(address, input_dir, output_dir string){
         return
     }
 
+    // Wait for compilation to finish
+    err=receive_wait_messages(connection)
+    if err!=nil{
+        return
+    }
+
     // Get the stdout and stderr output of the compilation process
     cmd_stdout, cmd_stderr, err:=func() ([]byte, []byte, error){
         size, err:=read_int_from_connection(connection)
