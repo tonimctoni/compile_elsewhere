@@ -47,17 +47,23 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
         return
     }
 
-    // // Get a list of all files and directories pertinent to the current user
-    // file_dir_data, err=list_dir_into_file_dir_data(root_dir)
-    // if err != nil {
-    //     return
-    // }
+    // Get a list of all files and directories pertinent to the current user
+    file_dir_data, err=list_dir_into_file_dir_data(root_dir)
+    if err != nil {
+        return
+    }
 
-    // // Write it to connection
-    // err=write_struct_as_json_to_connection(connection, file_dir_data)
-    // if err!=nil{
-    //     return
-    // }
+    // Write it to connection
+    err=write_struct_as_json_to_connection(connection, file_dir_data)
+    if err!=nil{
+        return
+    }
+
+    // Write the actual files to connection
+    err=write_files_into_connection(connection, root_dir, file_dir_data.Files)
+    if err!=nil{
+        return
+    }
 
     // fmt.Println(file_dir_data)
 }
