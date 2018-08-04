@@ -5,12 +5,9 @@ import "fmt"
 import "os"
 
 
-func main() {
-    input_dir:="input"
-    output_dir:="output"
-
+func run_client(address, input_dir, output_dir string) {
     // Create a tcp connection with server
-    connection,err:=net.Dial("tcp", "localhost:1234")
+    connection,err:=net.Dial("tcp", address)
     if err!=nil{
         fmt.Fprintln(os.Stderr, "Error (net.Dial):", err)
         return
@@ -30,7 +27,7 @@ func main() {
     }
 
     // Write the actual files to connection
-    err=write_files_into_connection(connection, input_dir, file_dir_data.Files)
+    err=write_files_into_connection(connection, input_dir, file_dir_data.Files, true)
     if err!=nil{
         return
     }
@@ -78,7 +75,7 @@ func main() {
     }
 
     // Read contents of files from connection and write them to actual files
-    err=read_from_connection_into_files(connection, output_dir, file_dir_data.Files)
+    err=read_from_connection_into_files(connection, output_dir, file_dir_data.Files, true)
     if err!=nil{
         return
     }

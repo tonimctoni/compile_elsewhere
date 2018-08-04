@@ -31,10 +31,16 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
     defer os.RemoveAll(root_dir)
 
     // Read contents of files from connection and write them to actual files
-    err=read_from_connection_into_files(connection, root_dir, file_dir_data.Files)
+    err=read_from_connection_into_files(connection, root_dir, file_dir_data.Files, false)
     if err!=nil{
         return
     }
+
+    // // Make a set of all existing files, to only send new ones later
+    // retrieved_file_path_set:=make(map[string]bool)
+    // for _,file_data:=range file_dir_data.Files{
+    //     retrieved_file_path_set[file_data.Path]=true
+    // }
 
     // Compile the received source code
     cmd:=exec.Command("make")
@@ -75,6 +81,15 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
         return
     }
 
+    // // Remove old files from list, such that only ones created when compiling are sent to client
+    // new_file_data:=make([]FileData, 0, len(file_dir_data.Files))
+    // for _,file_data:=range file_dir_data.Files{
+    //     if retrieved_file_path_set[file_data.Path]==false{
+    //         new_file_data=append(new_file_data, file_data)
+    //     }
+    // }
+    // file_dir_data.Files=new_file_data
+
     // Write it to connection
     err=write_struct_as_json_to_connection(connection, file_dir_data)
     if err!=nil{
@@ -82,17 +97,18 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
     }
 
     // Write the actual files to connection
-    err=write_files_into_connection(connection, root_dir, file_dir_data.Files)
+    err=write_files_into_connection(connection, root_dir, file_dir_data.Files, false)
     if err!=nil{
         return
     }
 }
 
-func main() {
+func run_server(address string) {
+    // address:=":1234"
     work_dir_counter:=int64(0)
 
     // Listen for connections (this being a server and all)
-    listener,err:=net.Listen("tcp", ":1234")
+    listener,err:=net.Listen("tcp", address)
     if err!=nil{
         fmt.Fprintln(os.Stderr, "Error (net.Listen):", err)
         return

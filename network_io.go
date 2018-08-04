@@ -89,9 +89,12 @@ func read_struct_as_json_from_connection(connection net.Conn, struct_to_receive 
     return nil
 }
 
-func read_from_connection_into_files(connection net.Conn, root_dir string, file_data []FileData) error{
+func read_from_connection_into_files(connection net.Conn, root_dir string, file_data []FileData, verbose bool) error{
     // Read all needed files from connection and save them in their paths within root_dir
     for _,file_data:=range file_data{
+        if verbose{
+            fmt.Println("Receiving:", file_data.Path)
+        }
         file_content, err:=read_bytes_from_connection(connection, file_data.Size)
         if err!=nil{
             return err
@@ -175,9 +178,12 @@ func write_struct_as_json_to_connection(connection net.Conn, struct_to_send inte
     return nil
 }
 
-func write_files_into_connection(connection net.Conn, root_dir string, file_data []FileData) error{
+func write_files_into_connection(connection net.Conn, root_dir string, file_data []FileData, verbose bool) error{
     // Write files in file_data to connection
     for _, file_data:=range file_data{
+        if verbose{
+            fmt.Println("Sending:", file_data.Path)
+        }
         file_content, err:=ioutil.ReadFile(path.Join(root_dir, file_data.Path))
         if err!=nil{
             fmt.Fprintln(os.Stderr, "Error (ioutil.ReadFile):", err)

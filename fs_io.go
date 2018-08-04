@@ -49,6 +49,11 @@ func list_dir_into_file_dir_data(root string) (FileDirData, error){
         // Remove root from path
         path=path[len(root)+1:]
 
+        // Ignore hidden files and directories
+        if strings.Contains(path, "/.") || strings.HasPrefix(path, "."){
+            return nil
+        }
+
         // Make sure there were no errors reaching this file/directory listing its contents
         if err != nil {
             fmt.Fprintln(os.Stderr, "Error (filepath.Walk) (WalkFunc):", err)
