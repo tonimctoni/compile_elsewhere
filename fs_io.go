@@ -19,6 +19,14 @@ type FileDirData struct{
 
 // Create all directories in "paths" within "root" directory
 func create_directories(root string, paths []string) error{
+    // Creater root directory
+    err:=os.Mkdir(root, 0766)
+    if err!=nil{
+        fmt.Fprintln(os.Stderr, "Error (os.Mkdir):", err)
+        return err
+    }
+
+    // Create the rest of the directories
     for _,a_path:=range paths{
         a_path=path.Join(root, a_path)
         err:=os.MkdirAll(a_path, 0766)
