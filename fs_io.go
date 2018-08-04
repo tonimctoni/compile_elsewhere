@@ -20,9 +20,9 @@ type FileDirData struct{
 // Create all directories in "paths" within "root" directory
 func create_directories(root string, paths []string) error{
     // Creater root directory
-    err:=os.Mkdir(root, 0766)
+    err:=os.MkdirAll(root, 0766)
     if err!=nil{
-        fmt.Fprintln(os.Stderr, "Error (os.Mkdir):", err)
+        fmt.Fprintln(os.Stderr, "Error (os.MkdirAll) (1):", err)
         return err
     }
 
@@ -31,7 +31,7 @@ func create_directories(root string, paths []string) error{
         a_path=path.Join(root, a_path)
         err:=os.MkdirAll(a_path, 0766)
         if err!=nil{
-            fmt.Fprintln(os.Stderr, "Error (os.MkdirAll):", err)
+            fmt.Fprintln(os.Stderr, "Error (os.MkdirAll) (2):", err)
             return err
         }
     }
