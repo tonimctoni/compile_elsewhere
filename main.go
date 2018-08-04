@@ -22,12 +22,14 @@ func main() {
 // wget https://dl.google.com/go/go1.10.3.linux-amd64.tar.gz
 // mv go /usr/local/
 // export PATH=$PATH:/usr/local/go/bin
-// // curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
-// // apt-get install nodejs
-// // npm install -g elm
+// curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
+// apt-get install nodejs
+// npm install -g elm --unsafe-perm=true --allow-root
 
 // As user:
 // curl https://sh.rustup.rs -sSf | sh
+// rustup install nightly
+// rustup default nightly
 
 // On every start:
 // export PATH=$PATH:/usr/local/go/bin
