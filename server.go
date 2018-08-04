@@ -103,8 +103,7 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
     }
 }
 
-func run_server(address string) {
-    // address:=":1234"
+func run_server(address string){
     work_dir_counter:=int64(0)
 
     // Listen for connections (this being a server and all)

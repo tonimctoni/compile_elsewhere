@@ -5,7 +5,7 @@ import "fmt"
 import "os"
 
 
-func run_client(address, input_dir, output_dir string) {
+func run_client(address, input_dir, output_dir string){
     // Create a tcp connection with server
     connection,err:=net.Dial("tcp", address)
     if err!=nil{
