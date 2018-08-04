@@ -36,12 +36,6 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
         return
     }
 
-    // // Make a set of all existing files, to only send new ones later
-    // retrieved_file_path_set:=make(map[string]bool)
-    // for _,file_data:=range file_dir_data.Files{
-    //     retrieved_file_path_set[file_data.Path]=true
-    // }
-
     // Compile the received source code
     cmd:=exec.Command("make")
     cmd_stdout:=new(bytes.Buffer)
@@ -80,15 +74,6 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
     if err != nil {
         return
     }
-
-    // // Remove old files from list, such that only ones created when compiling are sent to client
-    // new_file_data:=make([]FileData, 0, len(file_dir_data.Files))
-    // for _,file_data:=range file_dir_data.Files{
-    //     if retrieved_file_path_set[file_data.Path]==false{
-    //         new_file_data=append(new_file_data, file_data)
-    //     }
-    // }
-    // file_dir_data.Files=new_file_data
 
     // Write it to connection
     err=write_struct_as_json_to_connection(connection, file_dir_data)

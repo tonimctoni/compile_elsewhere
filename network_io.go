@@ -9,13 +9,46 @@ import "encoding/json"
 import "io/ioutil"
 import "path"
 
+// Reads bytes from connection. If the size is larger than 1024, it is read in chunks of 1024
+// It laso makes sure that exactly "size" bytes are read
+func read_bytes_from_connection(connection net.Conn, size int) ([]byte, error){
+    buffer:=make([]byte, size)
+    index:=int(0)
+
+    // While more than 1024 bytes are left to read: read them in chunks of 1024 and add them to buffer
+    for size>1024{
+        n,err:=connection.Read(buffer[index:index+1024])
+        if err!=nil{
+            fmt.Fprintln(os.Stderr, "Error (connection.Read) (1):", err)
+            return nil, err
+        }
+        index+=n
+        size-=n
+    }
+
+    // While there is less thatn 1024 bytes left to read: try to read the rest
+    for size>0{
+        n,err:=connection.Read(buffer[index:])
+        if err!=nil{
+            fmt.Fprintln(os.Stderr, "Error (connection.Read) (2):", err)
+            return nil, err
+        }
+        index+=n
+        size-=n
+    }
+
+    if size!=0{
+        panic("read_bytes_from_connection implemented incorrectly")
+    }
+
+    return buffer, nil
+}
+
 // Reads 20 bytes from connection, expecting the padded ascii representation of an int. Returns the int.
 func read_int_from_connection(connection net.Conn) (int, error){
     // Read 20 bytes from connection
-    padded_ascii_int_bytes:=make([]byte, 20)
-    _,err:=connection.Read(padded_ascii_int_bytes)
+    padded_ascii_int_bytes, err:=read_bytes_from_connection(connection, 20)
     if err!=nil{
-        fmt.Fprintln(os.Stderr, "Error (connection.Read) (1):", err)
         return 0, err
     }
 
@@ -29,41 +62,6 @@ func read_int_from_connection(connection net.Conn) (int, error){
     }
 
     return int_to_return, nil
-}
-
-// Reads bytes from connection. If the size is larger than 1024, it is read in chunks of 1024
-func read_bytes_from_connection(connection net.Conn, size int) ([]byte, error){
-    buffer:=make([]byte, size)
-    index:=int(0)
-
-    // While more than 1024 bytes are left to read: read them and add them to buffer
-    for size>1024{
-        n,err:=connection.Read(buffer[index:index+1024])
-        if err!=nil{
-            fmt.Fprintln(os.Stderr, "Error (connection.Read) (2):", err)
-            return nil, err
-        }
-        index+=n
-        size-=n
-    }
-
-    // If there is anything left to read (that is, size was not a multiple of 1024) read it and add it to buffer
-    // Also, if size was a multiple of 1024 exactly 1024 bytes are sent here
-    if size!=0{
-        n,err:=connection.Read(buffer[index:])
-        if err!=nil{
-            fmt.Fprintln(os.Stderr, "Error (connection.Read) (3):", err)
-            return nil, err
-        }
-        index+=n
-        size-=n
-    }
-
-    if size!=0{
-        panic("read_file_from_connection implemented incorrectly")
-    }
-
-    return buffer, nil
 }
 
 func read_struct_as_json_from_connection(connection net.Conn, struct_to_receive interface{}) error{
