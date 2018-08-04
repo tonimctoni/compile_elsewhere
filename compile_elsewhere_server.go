@@ -3,106 +3,13 @@ package main;
 import "net"
 import "fmt"
 import "os"
-import "strings"
+// import "strings"
 import "strconv"
-import "encoding/json"
-// import "errors"
+// import "encoding/json"
 import "sync/atomic"
-import "path"
-import "io/ioutil"
-
-// Reads 20 bytes from connection, expecting the padded ascii representation of an int. Returns the int.
-func read_int_from_connection(connection net.Conn) (int, error){
-    // Read 20 bytes from connection
-    padded_ascii_int_bytes:=make([]byte, 20)
-    _,err:=connection.Read(padded_ascii_int_bytes)
-    if err!=nil{
-        fmt.Fprintln(os.Stderr, "Error (connection.Read) (1):", err)
-        return 0, err
-    }
-
-    // Get the actual int out of what was read
-    padded_ascii_int_string:=string(padded_ascii_int_bytes)
-    ascii_int_string:=strings.TrimSpace(padded_ascii_int_string)
-    int_to_return, err:=strconv.Atoi(ascii_int_string)
-    if err!=nil{
-        fmt.Fprintln(os.Stderr, "Error (strconv.Atoi) (1):", err)
-        return 0, err
-    }
-
-    return int_to_return, nil
-}
-
-// Reads bytes from connection. If the size is larger than 1024, it is read in chunks of 1024
-func read_bytes_from_connection(connection net.Conn, size int) ([]byte, error){
-    buffer:=make([]byte, size)
-    index:=int(0)
-
-    // While more than 1024 bytes are left to read: read them and add them to buffer
-    for size>1024{
-        n,err:=connection.Read(buffer[index:index+1024])
-        if err!=nil{
-            fmt.Fprintln(os.Stderr, "Error (connection.Read) (2):", err)
-            return nil, err
-        }
-        index+=n
-        size-=n
-    }
-
-    // If there is anything left to read (that is, size was not a multiple of 1024) read it and add it to buffer
-    // Also, if size was a multiple of 1024 exactly 1024 bytes are sent here
-    if size!=0{
-        n,err:=connection.Read(buffer[index:])
-        if err!=nil{
-            fmt.Fprintln(os.Stderr, "Error (connection.Read) (3):", err)
-            return nil, err
-        }
-        index+=n
-        size-=n
-    }
-
-    if size!=0{
-        panic("read_file_from_connection implemented incorrectly")
-    }
-
-    return buffer, nil
-}
-
-func read_struct_as_json_from_connection(connection net.Conn, struct_to_receive interface{}) error{
-    // Get length of the json file to be read from connection
-    json_struct_len, err:=read_int_from_connection(connection)
-    if err!=nil{
-        return err
-    }
-
-    // Get the actuall json data as a byte array
-    json_struct, err:=read_bytes_from_connection(connection, json_struct_len)
-    if err!=nil{
-        return err
-    }
-
-    // Get struct from json data
-    err=json.Unmarshal(json_struct, struct_to_receive)
-    if err!=nil{
-        fmt.Fprintln(os.Stderr, "Error (json.Unmarshal):", err)
-        return err
-    }
-
-    return nil
-}
-
-// Create all directories in "paths" within "root" directory
-func create_directories(root string, paths []string) error{
-    for _,a_path:=range paths{
-        a_path=path.Join(root, a_path)
-        err:=os.MkdirAll(a_path, 0766)
-        if err!=nil{
-            fmt.Fprintln(os.Stderr, "Error (os.MkdirAll):", err)
-            return err
-        }
-    }
-    return nil
-}
+// import "path"
+// import "io/ioutil"
+import "os/exec"
 
 func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
     defer connection.Close()
@@ -125,21 +32,34 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
     // When done with the connection, remove the directory created specifically for it
     defer os.RemoveAll(root_dir)
 
-    // Read all needed files from connection and save them in their paths within root_dir
-    for _,file_data:=range file_dir_data.Files{
-        file_content, err:=read_bytes_from_connection(connection, file_data.Size)
-        if err!=nil{
-            return
-        }
-
-        err=ioutil.WriteFile(path.Join(root_dir, file_data.Path), file_content, 0766)
-        if err!=nil{
-            fmt.Fprintln(os.Stderr, "Error (ioutil.WriteFile):", err)
-            return
-        }
+    // Read contents of files from connection and write them to actual files
+    err=read_from_connection_into_files(connection, root_dir, file_dir_data.Files)
+    if err!=nil{
+        return
     }
 
-    fmt.Println(file_dir_data)
+    // Compile the received source code
+    cmd:=exec.Command("make")
+    cmd.Dir=root_dir
+    err=cmd.Run()
+    if err!=nil{
+        fmt.Fprintln(os.Stderr, "Error (exec.Command(...).Run()):", err)
+        return
+    }
+
+    // // Get a list of all files and directories pertinent to the current user
+    // file_dir_data, err=list_dir_into_file_dir_data(root_dir)
+    // if err != nil {
+    //     return
+    // }
+
+    // // Write it to connection
+    // err=write_struct_as_json_to_connection(connection, file_dir_data)
+    // if err!=nil{
+    //     return
+    // }
+
+    // fmt.Println(file_dir_data)
 }
 
 func main() {
