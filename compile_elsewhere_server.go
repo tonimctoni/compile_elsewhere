@@ -3,13 +3,11 @@ package main;
 import "net"
 import "fmt"
 import "os"
-// import "strings"
 import "strconv"
-// import "encoding/json"
 import "sync/atomic"
-// import "path"
-// import "io/ioutil"
 import "os/exec"
+import "bytes"
+
 
 func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
     defer connection.Close()
@@ -40,9 +38,33 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
 
     // Compile the received source code
     cmd:=exec.Command("make")
+    cmd_stdout:=new(bytes.Buffer)
+    cmd_stderr:=new(bytes.Buffer)
+    cmd.Stdout=cmd_stdout
+    cmd.Stderr=cmd_stderr
     cmd.Dir=root_dir
-    err=cmd.Run()
+    cmd_err:=cmd.Run()
+
+    // Write stdout/stderr of make command to connection
+    err=write_int_to_connection(connection, cmd_stdout.Len())
     if err!=nil{
+        return
+    }
+    err=write_bytes_to_connection(connection, cmd_stdout.Bytes())
+    if err!=nil{
+        return
+    }
+    err=write_int_to_connection(connection, cmd_stderr.Len())
+    if err!=nil{
+        return
+    }
+    err=write_bytes_to_connection(connection, cmd_stderr.Bytes())
+    if err!=nil{
+        return
+    }
+
+    // If there was an error in the compilation process: abort
+    if cmd_err!=nil{
         fmt.Fprintln(os.Stderr, "Error (exec.Command(...).Run()):", err)
         return
     }
@@ -64,8 +86,6 @@ func handle_incomming_connection(connection net.Conn, work_dir_counter *int64){
     if err!=nil{
         return
     }
-
-    // fmt.Println(file_dir_data)
 }
 
 func main() {

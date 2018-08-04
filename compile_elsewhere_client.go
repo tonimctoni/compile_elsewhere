@@ -3,13 +3,6 @@ package main;
 import "net"
 import "fmt"
 import "os"
-// import "strconv"
-// import "strings"
-// import "path/filepath"
-// import "encoding/json"
-// import "errors"
-// import "io/ioutil"
-// import "path"
 
 
 func main() {
@@ -42,6 +35,35 @@ func main() {
         return
     }
 
+    // Get the stdout and stderr output of the compilation process
+    cmd_stdout, cmd_stderr, err:=func() ([]byte, []byte, error){
+        size, err:=read_int_from_connection(connection)
+        if err!=nil{
+            return nil, nil, err
+        }
+
+        cmd_stdout, err:=read_bytes_from_connection(connection, size)
+        if err!=nil{
+            return nil, nil, err
+        }
+
+        size, err=read_int_from_connection(connection)
+        if err!=nil{
+            return nil, nil, err
+        }
+
+        cmd_stderr, err:=read_bytes_from_connection(connection, size)
+        if err!=nil{
+            return nil, nil, err
+        }
+
+        return cmd_stdout, cmd_stderr, nil
+    }()
+    if err!=nil{
+        return
+    }
+    fmt.Printf("Stdout:\n%s\n\n\nStderr:\n%s\n\n\n", cmd_stdout, cmd_stderr)
+
     // Receive the list of files from server (after compilation was done)
     file_dir_data=FileDirData{} //Just in case
     err=read_struct_as_json_from_connection(connection, &file_dir_data)
@@ -60,4 +82,6 @@ func main() {
     if err!=nil{
         return
     }
+
+    fmt.Println("Successful exit")
 }
